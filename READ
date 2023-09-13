@@ -1,0 +1,29 @@
+对TCP Server来说，他首先是创建一个fd对象
+
+客户端和服务端都用 `socket` 调用创建套接字；
+服务端用 `bind` 绑定监听地址，用 `listen` 把套接字转化为监听套接字，
+用 `accept` 捞取一个客户端来的连接；
+客户端用 `connect` 进行建连，用 `write/read` 进行网络 IO；
+
+IO多路复用即从原来非阻塞情况下的多个client需要各自发送recvfrom系统
+调用去不断询，转变成通过系统调用select/poll由内核主动通知用户
+那些client数据已就绪。
+
+IO多路复用的`SELECT()/POLL()`每次调用都需要拷贝管理的
+全量的fd到内核态，以及需要去知道那些`client`准备就绪。
+
+对于epoll来说，关键有三个函数：
+1.`epoll_create`:创建一个epoll对象
+2.`epoll_ctl`:将那个客户端fd的那些时间event交给那个epoll来管理。
+3.`epoll_wait`:等待其管理的连接上的IO事件。
+
+`Single-Reactor`:
+单线程，即服务端的`accept`,`read`和`write`
+引入线程池，专门处理业务逻辑操作，而IO相关的交由IO线程去做。
+
+`Muti-Reactor`:
+拓展Reactor线程，也称为主从结构。
+Main接收客户端连接，然后再由Main分发为sub，进行客户端连接。
+sub主要负责处理客户端的数据读写和业务逻辑的处理。
+
+所以多线程的难度需要控制进程间的通信。
